@@ -24,10 +24,14 @@ library(ggraph)
 
 I use annual product-level trade data collected by UN COMTRADE. I collect these data using the UN COMTRADE API.
 
-We need to get the country ID codes and specific spelling used by the UN COMTRADE to pull reporter level data. We can do this by pull them directly from the UN COMTRADE API. 
+We need to get the country ID codes and specific spelling used by the UN COMTRADE to pull reporter level data. We can do this by pull them directly from the UN COMTRADE API. We will only pull the countries that provide UN COMTRADE with data in our year of interest.
+
+> UN COMTRADE has very low usage limits for guests. You can only issue 100 requests per hour. You want to make sure that you are only making requests that you truly need.
 
 ```{r}
-country_id <- fromJSON("https://comtrade.un.org/Data/cache/reporterAreas.json")$results
+yr <- 2019
+
+country_id <- fromJSON(glue("https://comtrade.un.org/api/refs/da/view?freq=A&ps={yr}&px=HS"))
 
 head(country_id)
 ```
@@ -45,7 +49,7 @@ comtrade_pull <- function(r, cmd, dir, yr) {
     
     error = function(err) {
 
-      print("Limit reached, wait one hour")
+      print(glue("Limit reached at {lubridate::now()}, wait one hour"))
       Sys.sleep(3600)
       return(fromJSON(query))
 
@@ -74,7 +78,7 @@ comtrade_pull <- function(r, cmd, dir, yr) {
 For example, we can pull Australia's export trade in silk in 2019:
 
 ```{r}
-aus_x_silk_raw <- comtrade_pull(36, 50, 2, 2019)
+aus_x_silk_raw <- comtrade_pull(36, 50, 2, yr)
 
 head(aus_x_silk_raw)
 ```
@@ -96,7 +100,7 @@ head(aus_x_silk)
 
 ### Create a node list
 
-We need a list of all the individual countries involved in silk trade with Australia. 
+We need a list of all the individual countries involved in silk trade with Australia.
 
 ```{r}
 reporter <- distinct(aus_x_silk, entity = reporter)
