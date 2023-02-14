@@ -1,14 +1,23 @@
 ---
-title: "Methods Memo: Plotting Product Trade Networks"
+title: "Methods Memo"
+subtitle: "Plotting Product Trade Networks"
 author: "Harriet Goers"
-format: html
+format: 
+  html:
+    self-contained: true
 editor: visual
+toc: true
+execute: 
+  warning: false
+  message: false
 ---
 
 ```{r}
 library(tidyverse)
 library(jsonlite)
 library(glue)
+library(tidygraph)
+library(ggraph)
 ```
 
 ## Sourcing raw trade data
@@ -62,8 +71,70 @@ comtrade_pull <- function(r, cmd, dir, yr) {
 }
 ```
 
-For example, we can pull Afghanistan's export trade in silk in 2019:
+For example, we can pull Australia's export trade in silk in 2019:
 
 ```{r}
-aus_x_silk <- comtrade_pull(36, 50, 2, 2019)
+aus_x_silk_raw <- comtrade_pull(36, 50, 2, 2019)
+
+head(aus_x_silk_raw)
+```
+
+## Cleaning up raw trade data
+
+We now want to clean up this bilateral trade data.
+
+```{r}
+aus_x_silk <- aus_x_silk_raw |> 
+  janitor::clean_names() |> 
+  select(
+    yr, direction = rg_desc, reporter = rt_title, partner = pt_title, cmd_code, trade_value
+  ) |> 
+  filter(partner != "World")
+
+head(aus_x_silk)
+```
+
+### Create a node list
+
+We need a list of all the individual countries involved in silk trade with Australia. 
+
+```{r}
+reporter <- distinct(aus_x_silk, entity = reporter)
+partners <- distinct(aus_x_silk, entity = partner)
+
+nodes <- bind_rows(reporter, partners)
+
+nodes
+```
+
+### Create an edge list
+
+```{r}
+edges <- aus_x_silk |> 
+  select(reporter, partner, trade_value)
+
+head(edges)
+```
+
+## Create a network
+
+```{r}
+trade_network <- tbl_graph(
+  nodes = nodes, 
+  edges = edges,
+  directed = T
+)
+
+trade_network
+```
+
+## Plot the network
+
+```{r}
+ggraph(trade_network) + 
+  geom_edge_link(aes(width = trade_value), alpha = 0.8, arrow = arrow(length = unit(2, 'mm'))) + 
+  scale_edge_width(range = c(0.2, 2)) + 
+  geom_node_point() + 
+  geom_node_text(aes(label = entity), repel = TRUE) +
+  theme_graph()
 ```
