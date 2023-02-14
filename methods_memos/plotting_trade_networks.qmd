@@ -1,0 +1,69 @@
+---
+title: "Methods Memo: Plotting Product Trade Networks"
+author: "Harriet Goers"
+format: html
+editor: visual
+---
+
+```{r}
+library(tidyverse)
+library(jsonlite)
+library(glue)
+```
+
+## Sourcing raw trade data
+
+I use annual product-level trade data collected by UN COMTRADE. I collect these data using the UN COMTRADE API.
+
+We need to get the country ID codes and specific spelling used by the UN COMTRADE to pull reporter level data. We can do this by pull them directly from the UN COMTRADE API. 
+
+```{r}
+country_id <- fromJSON("https://comtrade.un.org/Data/cache/reporterAreas.json")$results
+
+head(country_id)
+```
+
+We can collect the data at the reporter and product level. Full documentation for the API can be found [here](https://comtrade.un.org/data/doc/api/#DataRequests).
+
+```{r}
+comtrade_pull <- function(r, cmd, dir, yr) {
+
+  query <- glue("https://comtrade.un.org/api/get?r={r}&cc={cmd}&rg={dir}&ps={yr}&fmt=json&freq=A&head=H")
+
+  result <- tryCatch(
+    
+    fromJSON(query),
+    
+    error = function(err) {
+
+      print("Limit reached, wait one hour")
+      Sys.sleep(3600)
+      return(fromJSON(query))
+
+    }
+    
+  )
+
+  trade_df <- fromJSON(query)$dataset |>
+    as_tibble()
+
+  if (length(trade_df) != 0) {
+    
+    print(glue("Pulling data for {r}"))
+    return (trade_df)
+    
+  } else {
+    
+    print(glue("No data for {r}"))
+    return(NULL)
+    
+  }
+
+}
+```
+
+For example, we can pull Afghanistan's export trade in silk in 2019:
+
+```{r}
+aus_x_silk <- comtrade_pull(36, 50, 2, 2019)
+```
