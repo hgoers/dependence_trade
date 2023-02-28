@@ -69,10 +69,18 @@ ggplot(df_0502, aes(x = reporter_share, y = reorder(reporter, reporter_share))) 
   labs(x = "Reporter share (%)", y = NULL)
 ```
 
-I am interested in highly concentrated markets, so I am going to use these summaries going forward. 
+I reference the full range of HHI in my article, so I am going to save a summary of each product-year HHI calculated. 
+
+```{r}
+df_hhi |> 
+  distinct(year, cmd_code, cmd_desc, hhi) |> 
+  export(here("data", "hhi_summary.csv"))
+```
+
+I analyse highly concentrated markets. To do this, I need data on the reporter share in highly concentrated markets. 
 
 ```{r}
 df_hhi |> 
   filter(hhi > 2500) |> 
-  export(here("data", "hc_product_level_trade.csv"))
+  export(here("data", "hc_product_global.csv"))
 ```
