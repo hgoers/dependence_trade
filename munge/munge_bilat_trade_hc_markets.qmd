@@ -1,0 +1,95 @@
+---
+title: "Locating Alternative Trade Partners"
+author: "Harriet Goers"
+format: 
+  html:
+    self-contained: true
+editor: visual
+execute:
+  message: false
+  warning: false
+---
+
+```{r}
+library(tidyverse)
+library(rio)
+library(here)
+library(janitor)
+```
+
+First we need to read in our bilateral trade data:
+
+```{r}
+df_raw <- map_dfr(
+  list.files(here("data-raw", "bilat_trade"), full.names = T), 
+  ~ read_csv(.x, col_types = "ccccccccccccccccccccccccccccccccccc")
+) |> 
+  clean_names() |> 
+  transmute(
+    year = as.numeric(yr), 
+    direction = rg_desc, 
+    reporter = rt_title, 
+    partner = pt_title, 
+    cmd_code, 
+    cmd_desc = cmd_desc_e, 
+    trade_value = as.numeric(trade_value)
+  )
+```
+
+Now we can see how big a gap the potential imposing state (`reporter`) can threaten to create in the potential target state's (`partner`) economy:
+
+```{r}
+df <- df_raw |> 
+  filter(partner != "World")
+
+df
+```
+
+Now we need to work out whether the potential target could fill the gap left by the potential imposer. 
+
+First, we need global trade from all other states participating in this market: 
+
+```{r}
+alt_summary <- read_csv(here("data", "hc_product_global.csv"), col_types = c(cmd_code = "c")) |> 
+  select(year, direction, alt_reporter = reporter, cmd_code, alt_trade_value = trade_value) |> 
+  group_by(year, direction, cmd_code) |> 
+  arrange(desc(alt_trade_value)) |> 
+  slice_tail(n = -1L) |> 
+  ungroup()
+```
+
+We want to work out whether these alternate trade partners can fill the gap. To do this, we calculate the cumulative total value traded by all alternative partners. We then determine the number of partners required to divert all of their trade to the target to fill the gap. If the second largest exporter/importer of the threatened commodity is sufficiently large to fill the gap left, the target only needs their support. If the top three exporters/importers are sufficiently large to fill the gap, the target needs to locate three alternative partners at a minimum. 
+
+```{r}
+gap_df <- df |> 
+  left_join(alt_summary, by = c("year", "direction", "cmd_code")) |> 
+  group_by(year, direction, cmd_code, partner) |> 
+  mutate(
+    cum_alt_trade_value = cumsum(alt_trade_value),
+    gap_filled = if_else(cum_alt_trade_value >= trade_value, 1, 0),
+    n_partners_req = sum(gap_filled == 0) + 1,
+    gap_never_filled = if_else(sum(gap_filled) == 0, 1, 0)
+  ) |> 
+  ungroup()
+
+gap_df
+```
+
+For example, Germany needs to convince four alternative export partners to divert their trade to Germany if China threatens to stop trade in pigs', hogs' or boars' bristles and hair and waste thereof. Happily for Germany, they can divert their exports in these product to their domestic market and make up a substantial proportion of the gap. At a minimum, they would also need to convince the UK, US, and Netherlands to divert trade to them. 
+
+```{r}
+gap_df |> 
+  filter(year == 2019, cmd_code == "0502", partner == "Germany")
+```
+
+There are several commodities and partners for which the dominant exporter is sufficiently large that no combination of other existing trade partners could fill the gap left by the dominant exporter. These represent particularly vulnerable trade partners. 
+
+```{r}
+hv_df <- gap_df |> 
+  filter(gap_never_filled == 1) |> 
+  distinct(year, direction, reporter, partner, cmd_desc)
+
+hv_df
+```
+
+Focusing on these particularly vulnerable markets and trade partners, we have now whittled down the list of potential trade dependence relationships from `r nrow(df)` to `r nrow(hv_df)`.

@@ -26,13 +26,13 @@ df_raw <- map_dfr(
 )
 ```
 
-Next we need to calculate the HHI for each product: 
+Next we need to calculate the HHI for each product:
 
 ```{r}
 df_hhi <- df_raw |> 
   clean_names() |> 
   select(year = yr, direction = rg_desc, reporter = rt_title, partner = pt_title, cmd_code, cmd_desc = cmd_desc_e, trade_value) |> 
-  group_by(cmd_code, year) |> 
+  group_by(cmd_code, year, direction) |> 
   mutate(
     year = as.numeric(year),
     trade_value = as.numeric(trade_value),
@@ -45,16 +45,16 @@ df_hhi <- df_raw |>
 df_hhi
 ```
 
-Now we can identify which markets are highly concentrated: 
+Now we can identify which markets are highly concentrated:
 
 ```{r}
 df_hhi |> 
   filter(hhi > 2500) |> 
-  distinct(year, cmd_code, cmd_desc, hhi) |> 
+  distinct(year, direction, cmd_code, cmd_desc, hhi) |> 
   arrange(desc(hhi))
 ```
 
-And we can identify the dominant traders in each market. Let's look at 0502: Pigs', hogs' or boars' bristles and hair; and waste thereof in 2019, which is a highly concentrated market. 
+And we can identify the dominant traders in each market. Let's look at 0502: Pigs', hogs' or boars' bristles and hair; and waste thereof in 2019, which is a highly concentrated market.
 
 ```{r}
 df_0502 <- filter(df_hhi, cmd_code == "0502")
@@ -69,15 +69,15 @@ ggplot(df_0502, aes(x = reporter_share, y = reorder(reporter, reporter_share))) 
   labs(x = "Reporter share (%)", y = NULL)
 ```
 
-I reference the full range of HHI in my article, so I am going to save a summary of each product-year HHI calculated. 
+I reference the full range of HHI in my article, so I am going to save a summary of each product-year HHI calculated.
 
 ```{r}
 df_hhi |> 
-  distinct(year, cmd_code, cmd_desc, hhi) |> 
+  distinct(year, direction, cmd_code, cmd_desc, hhi) |> 
   export(here("data", "hhi_summary.csv"))
 ```
 
-I analyse highly concentrated markets. To do this, I need data on the reporter share in highly concentrated markets. 
+I analyse highly concentrated markets. To do this, I need data on the reporter share in highly concentrated markets.
 
 ```{r}
 df_hhi |> 
