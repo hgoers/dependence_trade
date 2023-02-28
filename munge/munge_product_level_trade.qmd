@@ -1,0 +1,78 @@
+---
+title: "Calculating the HHI for International Trade Markets"
+author: "Harriet Goers"
+format: 
+  html:
+    self-contained: true
+editor: visual
+execute:
+  message: false
+  warning: false
+---
+
+```{r}
+library(tidyverse)
+library(rio)
+library(here)
+library(janitor)
+```
+
+First we need to read in our total trade data:
+
+```{r}
+df_raw <- map_dfr(
+  list.files(here("data-raw", "2019"), full.names = T), 
+  ~ read_csv(.x, col_types = "ccccccccccccccccccccccccccccccccccc")
+)
+```
+
+Next we need to calculate the HHI for each product: 
+
+```{r}
+df_hhi <- df_raw |> 
+  clean_names() |> 
+  select(year = yr, direction = rg_desc, reporter = rt_title, partner = pt_title, cmd_code, cmd_desc = cmd_desc_e, trade_value) |> 
+  group_by(cmd_code, year) |> 
+  mutate(
+    year = as.numeric(year),
+    trade_value = as.numeric(trade_value),
+    global_trade_value = sum(trade_value),
+    reporter_share = trade_value / global_trade_value * 100,
+    hhi = sum(reporter_share^2)
+  ) |> 
+  ungroup()
+
+df_hhi
+```
+
+Now we can identify which markets are highly concentrated: 
+
+```{r}
+df_hhi |> 
+  filter(hhi > 2500) |> 
+  distinct(year, cmd_code, cmd_desc, hhi) |> 
+  arrange(desc(hhi))
+```
+
+And we can identify the dominant traders in each market. Let's look at 0502: Pigs', hogs' or boars' bristles and hair; and waste thereof in 2019, which is a highly concentrated market. 
+
+```{r}
+df_0502 <- filter(df_hhi, cmd_code == "0502")
+
+arrange(df_0502, desc(reporter_share))
+```
+
+```{r}
+ggplot(df_0502, aes(x = reporter_share, y = reorder(reporter, reporter_share))) + 
+  geom_col() + 
+  theme_minimal() + 
+  labs(x = "Reporter share (%)", y = NULL)
+```
+
+I am interested in highly concentrated markets, so I am going to use these summaries going forward. 
+
+```{r}
+df_hhi |> 
+  filter(hhi > 2500) |> 
+  export(here("data", "hc_product_level_trade.csv"))
+```
