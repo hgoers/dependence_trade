@@ -1,0 +1,79 @@
+---
+title: "Sourcing Bilateral Trade Data for Highly Concentrated Markets"
+author: "Harriet Goers"
+format: 
+  html:
+    self-contained: true
+editor: visual
+execute: 
+  warning: false
+  message: false
+---
+
+```{r}
+library(tidyverse)
+library(here)
+library(httr)
+library(jsonlite)
+library(glue)
+```
+
+First, we need to source the unique reporter codes used by UN COMTRADE. We need to use these IDs in the API call. 
+
+```{r}
+reporter_codes <- fromJSON("https://comtrade.un.org/Data/cache/reporterAreas.json")$results
+```
+
+Then we need the product codes, years, and dominant reporters for highly concentrated markets:
+
+```{r}
+hc_bilat_summary <- read_csv(here("data", "hc_product_global.csv"), col_types = c(cmd_code = "c")) |> 
+  group_by(year, direction, cmd_code) |>
+  slice_max(reporter_share) |> 
+  mutate(direction_code = if_else(direction == "Import", 1, 2)) |> 
+  left_join(reporter_codes, by = c("reporter" = "text"))
+```
+
+Then we need to pull the bilateral trade data for each of these reporters, products, and year:
+
+```{r}
+comtrade_bilat_pull <- function(reporter, product_code, year, direction) {
+
+  query <- glue("https://comtrade.un.org/api/get?px=HS&ps={year}&r={reporter}&p=all&rg={direction}&cc={product_code}&fmt=json&freq=A&head=H")
+
+  result <- tryCatch(
+    
+    fromJSON(query),
+    
+    error = function(err) {
+
+      print(glue("Limit reached at {lubridate::now()}, wait one hour"))
+      Sys.sleep(3600)
+      return(fromJSON(query))
+
+    }
+    
+  )
+
+  trade_df <- fromJSON(query)$dataset |>
+    as_tibble()
+
+  if (length(trade_df) != 0) {
+    
+    print(glue("Pulling data for {reporter} trade in {product_code}"))
+    rio::export(trade_df, here::here("data-raw", "bilat_trade", glue::glue("{year}_{product_code}_{reporter}_{direction}.csv")))
+    
+  } else {
+    
+    print(glue("No data for {reporter} trade in {product_code}"))
+    return(NULL)
+    
+  }
+
+}
+
+safe_comtrade_bilat_pull <- safely(comtrade_bilat_pull)
+
+map2(hc_bilat_summary$id, hc_bilat_summary$cmd_code, ~ safe_comtrade_bilat_pull(.x, .y, "2019", "2"))
+```
+
