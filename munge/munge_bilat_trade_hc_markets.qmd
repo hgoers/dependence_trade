@@ -93,3 +93,9 @@ hv_df
 ```
 
 Focusing on these particularly vulnerable markets and trade partners, we have now whittled down the list of potential trade dependence relationships from `r nrow(df)` to `r nrow(hv_df)`.
+
+I refer to these markets in my article. 
+
+```{r}
+export(hv_df, here("data", "highly_vulnernable_bilat_trade.csv"))
+```
