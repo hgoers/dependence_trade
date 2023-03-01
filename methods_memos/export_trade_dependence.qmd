@@ -1,0 +1,313 @@
+---
+title: "Export Trade Dependence"
+subtitle: "Exploratory Analysis"
+author: "Harriet Goers"
+format: pdf
+editor: visual
+execute: 
+  message: false
+  warning: false
+bibliography: references.bib
+---
+
+```{r}
+#| include: false
+
+library(tidyverse)
+library(scales)
+```
+
+I am proposing a new measure of trade dependence that better reflects state behavior. One of the most common measures of trade dependence used in international relations literature is total trade between state A and B as a proportion of state B's GDP or GNI. Somewhat recently scholars have started to break these down into total imports and total exports between state A and B as a proportion of state B's GDP or GNI. They have found this distinction to be meaningful [@strüver2014; @kastner2016].
+
+Rarely, if ever, do we see states threaten to or impose total trade bans. Rather, states stop or stem trade in specific products that are strategically selected to maximize the economic cost borne by the target state whilst minimizing the cost borne by the imposing state [@gholz2021]. For example, when Australia called for a WHO investigation into the origins of the COVID-19 pandemic, China imposed an unofficial import ban on Australia's coal, wheat, barely, and wine. China is a dominant export market for these products and many policymakers in Australia worried about the predicted extreme economic costs of this ban. However, the government maintained its calls for an investigation and endured the trade bans. Two years later, Australia still faces most of these export restrictions; however, the economic costs were not as severe as anticipated.
+
+Our interest in trade dependence is derived from our interest in understanding power dynamics between states. Adopting Dahl's canonical definition of power: can state A make state B act in a way that it would not otherwise? If state B is trade dependent on state A, we can assume that state B is vulnerable to state A's influence. State A can credibly threaten to impose sufficient economic costs on state B that state B is likely to cave to state A's interests and act as it would not otherwise. It is important for international relations scholarship and policy that we understand the limits of this power. With an appropriate measure of trade dependence, we can better understand how states leverage this power and in which policy areas states are vulnerable to others' influence. I propose to use this measure of dependence to test our expectations about state behavior in specific areas, including re-examining regional security policy or vote buying in international organizations.
+
+Our traditional measures of trade dependence do not adequately measure the expected cost of trade bans. Gross measures of trade imbalances assign dependence where it does not exist and misses important vulnerabilities that lurk below aggregate economic interactions. We are often surprised by a state's resilience in the face of economic threats from states on which we believe the target state is dependent. We also miss important dependence relationships.
+
+This memo will focus on export trade dependence. Once I work this out, I will flesh out import trade dependence.
+
+## Theory
+
+To measure trade dependence, we need to flesh out the options available to all actors involved in trade networks. Broadly, I will consider the target state, the imposing state, and other potential export partners. Each of these actors have a range of options to select from in reaction to a threatened or imposed product-level trade ban.
+
+> TO DO: Probably out of scope for this first hit at this measure, but should include sub-state actors at some point.
+
+To be able to credibly threaten to or directly impose a significant economic cost on a target, the sender needs to have market power [@gholz2021]. I define market power as the proportion of the global market in a product the sender possesses.
+
+> Possible extension: sender controls? Alliances? Client states?
+
+If they have market power, they can threaten to impose a meaningful trade ban. This is a necessary, but not sufficient, condition of trade dependence.
+
+How can the target state respond? Broadly, the target has two options. First, they can locate alternative suppliers of the product and attempt to maintain current levels of consumption of the product. Second, they can attempt to reduce their consumption of the product through contractions or substitutions. In short, they can attempt to fill the gap or adapt to living with the gap.
+
+My measure of trade dependence answers the following questions:
+
+1.  Can the imposing state credibly threaten to impose severe economic costs on the target state? If yes:
+
+2.  Can the target state locate alternative trade partners to fill the gap left by the imposing state? If no:
+
+3.  Can the target state increase domestic production of the product to fill the gap left by the imposing state? If no:
+
+4.  Can the target state decrease consumption of the product by substituting it for a viable alternative? If no:
+
+5.  Can the target state reduce its consumption of the product and any downstream products? If no:
+
+6.  The target state is trade dependent on the imposing state.
+
+I will now step through how I propose to answer each of these questions in turn.
+
+## Can the imposing state credibly threaten to impose severe economic costs on the target state?
+
+To answer this question, we need a measure of market concentration. At the extreme, if the imposing state is the only supplier of a product, the target state will not be able to locate alternative suppliers of the product. It will either need to find a substitute or reduce its consumption of the product and any downstream products. Alternatively, if the imposing state is one of many suppliers of the product, the target state should be able to locate an alternative supplier of the product and only suffer slightly increased prices for the product on the global markets.
+
+Two related measures are widely used to understand market concentration: the Herfindahl-Hirschman Index (HHI) or the normalized HHI. I propose to use [existing calculations](https://unctadstat.unctad.org/wds/TableViewer/tableView.aspx?ReportId=121) of market concentration developed by the UNCTAD. They measure the degree of export market concentration by country of origin using the normlized HHI. They calculate this index for all products at the three-digit level of the SITC Revision 3.
+
+```{r}
+xmci_df <- rio::import(
+  here::here("data-raw", "us_concentstructindices_24453262575936.xlsx"), skip = 4
+) |>
+  pivot_longer(-YEAR, names_to = "year", values_to = "market_concentration_index") |>
+  transmute(
+    commodity = YEAR,
+    year = recode(year, "2021...54" = "2021", "2021...56" = "2021"),
+    year = as.numeric(year),
+    market_concentration_index = as.numeric(market_concentration_index)
+  ) |>
+  drop_na() |>
+  filter(!str_detect(commodity, "SITC|TOTAL ALL PRODUCTS"))
+```
+
+Across the `r xmci_df |> distinct(commodity) |> nrow()` different product markets identified at the three-digit level of the SITC Revision 3, the index ranged from `r xmci_df |> summarise(min(market_concentration_index)) |> pull() |> round(3)` to `r xmci_df |> summarise(max(market_concentration_index)) |> pull() |> round(3)`.
+
+```{r}
+ggplot(xmci_df, aes(x = market_concentration_index)) + 
+  geom_histogram() + 
+  theme_minimal()
+```
+
+```{r}
+h_xmci_df <- filter(xmci_df, market_concentration_index > 0.25)
+```
+
+The US Department of Justice considers a market with a HHI of: less than 1,500 to be competitive; between 1,500 and 2,500 to be moderately concentrated; and above 2,500 to be highly concentrated. Using these thresholds, `r percent(nrow(distinct(h_xmci_df, commodity)) / nrow(distinct(xmci_df, commodity)))` of all products were exported in highly concentrated markets in at least one year across the period `r xmci_df |> summarise(min(year)) |> pull()` to `r xmci_df |> summarise(max(year)) |> pull()`. `r h_xmci_df |> count(commodity) |> filter(n >= 10) |> distinct(commodity) |> nrow()` of the `r h_xmci_df |> distinct(commodity) |> nrow()` products exported in highly concentrated markets demonstrated sustained high levels of concentration over 10 or more years.
+
+We now understand the products for which a state or a small set of states can potentially control international export markets and impose severe economic costs on a target state at will. Going forward, I will look look at one of these markets in depth: coal gas, water gas and similar gases, excluding hydrocarbon gases (HS: 2601).
+
+I obtained bilateral export trade data for the coal gas, water gas and similar gases, excluding hydrocarbon gases (hereafter gases) market from [UN COMTRADE](https://comtradeplus.un.org/TradeFlow?Frequency=A&Flows=M&CommodityCodes=2601&Partners=all&Reporters=156&period=all&AggregateBy=none&BreakdownMode=plus).
+
+```{r}
+x_df <- rio::import(here::here("data-raw", "TradeData_2_19_2023_18_11_38.csv")) |>
+  janitor::clean_names() |>
+  select(year = ref_year, reporter = reporter_desc, value = primary_value) |>
+  group_by(year) |>
+  mutate(global_value = sum(value), n = n()) |>
+  ungroup() |>
+  mutate(country_share = value / global_value * 100) |>
+  group_by(year) |>
+  mutate(hhi = sum(country_share^2)) |>
+  ungroup() |>
+  filter(year <= 2020)
+```
+
+As we saw with the UNCTAD data, this market is highly concentrated. This market has not dipped below the threshold of highly concentrated in the period of interest.
+
+> Strangely, I cannot replicate the UNCTAD values for HHI using UN COMTRADE data. The graph below uses UN COMTRADE data. I have also switched to using HHI instead of normalized HHI.
+
+```{r}
+ggplot(x_df, aes(x = year, y = hhi)) +
+  geom_line() +
+  geom_hline(yintercept = 2500, colour = "darkgrey") +
+  theme_minimal()
+```
+
+Who are these dominant exporters? The graph below displays all reporters with a market share of greater than five percent in any year over the period of interest.
+
+```{r}
+dom_x <- x_df |> 
+  filter(country_share > 5) |> 
+  distinct(reporter) |> 
+  pull()
+
+x_df |>
+  filter(reporter %in% dom_x) |> 
+  ggplot(aes(x = year, y = country_share, colour = reporter)) +
+  geom_line() +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+```
+
+Australia and Brazil clearly dominate this market. Let's test whether any of their export partners are dependent on trade with them for these gases.
+
+## Can the target state locate alternative trade partners to fill the gap left by the imposing state?
+
+With whom do the dominant exporters in these markets trade? These partners represent potential targets. Let's start with Australia's (as the dominant exporter in this market) export partners.
+
+```{r}
+aus_df <- rio::import(here::here("data-raw", "TradeData_2_19_2023_18_26_35.csv")) |>
+  janitor::clean_names() |>
+  select(year = ref_year, reporter = reporter_desc, partner = partner_desc, value = primary_value) |>
+  filter(partner != "World") |>
+  group_by(year) |>
+  mutate(
+    global_value = sum(value),
+    partner_share = value / global_value * 100
+  ) |>
+  ungroup()
+```
+
+```{r}
+aus_partners <- count(aus_df, year)
+```
+
+The number of partners to which Australia exports these gases ranges from `r aus_partners |> slice_min(n) |> pull()` to `r aus_partners |> slice_max(n) |> pull()` across this period.
+
+```{r}
+ggplot(aus_partners, aes(x = year, y = n)) + 
+  geom_col() + 
+  theme_minimal()
+```
+
+```{r}
+ggplot(aus_df, aes(x = year, y = partner_share, colour = partner)) +
+  geom_line()
+```
+
+Could Australia credibly threaten to impose significant economic costs on any of these partners by threatening to stop or stem exports in these gases?
+
+Let's first look at whether these countries could fill the gap with another export partner. Brazil is perhaps a good first port of call. Let's start with an extreme (and unrealistic? test): if Brazil diverted all sales from other countries to the target of Australia's trade ban, could it fill the gap left by Australia in a given year?
+
+Let's look at Australia's largest export partner: China. China holds the largest share of Australian gas exports across every single year of interest. If Brazil can fill Australia's gap for China, it can fill that gap for every other possible target.
+
+```{r}
+bra_df <- x_df |> 
+  filter(reporter == "Brazil") |> 
+  select(year, brazil_global_value = value)
+
+aus_cn_df <- aus_df |> 
+  filter(partner == "China") |> 
+  select(year, reporter, partner, value)
+
+aus_cn_df |> 
+  left_join(bra_df, by = "year") |> 
+  mutate(gap = value - brazil_global_value) |> 
+  ggplot(aes(x = year, y = gap)) + 
+  geom_col() + 
+  theme_minimal() + 
+  scale_y_continuous(
+    "Gap Value",
+    labels = scales::label_dollar()  
+  )
+```
+
+At no stage could Brazil fill the gap left by Australia. Notably, this gap grows over time.
+
+China will look to increase supplies from all potential export partners, not just Brazil. What is the minimum coalition of exporters that could fill this gap?
+
+> TO DO: Have a look at China's existing trade partners, rather than just the whole batch of exporters. Lower cost to increase exports compared to setting up a new relationship. Also demonstrates willness on the part of the export partner to trade with China. Currently not modelling the potential alternative partners' decision-making well.
+
+```{r}
+min_coalition <- x_df |> 
+  select(year, reporter, value) |> 
+  filter(reporter != "Australia") |> 
+  group_by(year) |> 
+  arrange(year, desc(value)) |> 
+  mutate(cum_sum = cumsum(value)) |> 
+  left_join(
+    aus_cn_df |> 
+      select(year, aus_value = value),
+    by = "year"
+  ) |> 
+  mutate(
+    threshold_reached = if_else(cum_sum < aus_value, 0 , 1)
+  ) |> 
+  filter(
+    lag(threshold_reached) == 0 | threshold_reached == 0
+  )
+```
+
+```{r}
+gap_years <- min_coalition |> 
+  group_by(year) |> 
+  summarise(threshold_reached = sum(threshold_reached)) |> 
+  filter(threshold_reached == 0) |> 
+  pull(year)
+```
+
+```{r}
+min_coalition |> 
+  count(year) |> 
+  mutate(col = if_else(year %in% gap_years, 1, 0)) |> 
+  ggplot(aes(x = year, y = n, fill = col)) + 
+  geom_col() + 
+  theme_minimal() + 
+  theme(legend.position = "none")
+```
+
+In 2011, a combination of Brazil and South Africa's gas exports could fill the gap left by Australia. As the graph above demonstrates, at a minimum, these two countries would have to divert all of their exports in these gases to China to fill Australia's gap. In 2015, 18 countries are required to divert all of their exports to China to fill the gap.
+
+> TO DO: Look at how many different combinations of how many different countries could fill the gap. If you have lots of different options, you are more likely to succeed.
+
+Importantly, in `r gap_years` Australia dominates exports to such an extent that if all other exporters diverted all of their sales in gas to China, a gap would remain. This might indicate that this option (finding alternative suppliers on the international markets) is not an option for China.
+
+Before we rule this out, let's consider whether there any latent production capacity in any of these exporting countries? Could they increase production or divert domestic consumption to the export market to fill this gap?
+
+```{r}
+gap_prop <- aus_df |> 
+  filter(year %in% gap_years, partner == "China") |> 
+  mutate(diff = global_value - value) |> 
+  left_join(bra_df, by = "year") |> 
+  mutate(prop_bra = percent(global_value / brazil_global_value)) |> 
+  pull(prop_bra)
+```
+
+This seems unlikely. The remaining gap in production is equivalent to `r gap_prop` of Brazil's total exports for 2016, 2019, and 2020 respectively. Remember, Brazil is the second largest exporter of these gases. Other countries are unlikely to be able to fill this gap by ramping up export production.
+
+> TO DO: Perhaps this is not the most sophisticated way of answering this question. Are there models/data that can address latent capacity?
+
+It looks like China is going to have to adapt to this gap itself. Let's explore this option.
+
+## Can the target state increase domestic production of the product to fill the gap left by the imposing state?
+
+Does China produce these gases?
+
+```{r}
+x_df |> 
+  filter(reporter == "China") |> 
+  select(year, reporter, value, country_share)
+```
+
+Yes! In fact, they export them. They are even increasing their export market share.
+
+```{r}
+x_df |> 
+  filter(reporter == "China") |> 
+  select(year, reporter, value) |> 
+  left_join(
+    aus_df |> 
+      group_by(year) |> 
+      summarise(aus_global_value = sum(value)),
+    by = "year"
+  ) |> 
+  mutate(prop = percent(value / aus_global_value))
+```
+
+If China diverts all of its exports to its domestic market to fill the gap left by Australia, it will barely scratch the surface. We have, in fact, already answered this question in the analysis above: China was included in the alternative exporters.
+
+> TO DO: Find data on domestic production.
+
+> TO DO: Find a better measure of domestic latent capacity. If China can more cheaply import these gases than produce them domestically, they don't have a strong economic incentive to develop their domestic production capacity. However, they would have this incentive if Australia threatened to impose a trade ban. Could they ramp this up in a timely manner? See Japan's reaction to China's import ban on rare earth elements in 2010.
+
+## Can the target state decrease consumption of the product by substituting it for a viable alternative?
+
+Can China substitute its use of these gases and, therefore, reduce its demand for them?
+
+> TO DO: Find out whether these gases are substitutable. Requires in-depth research.
+
+## Can the target state reduce its consumption of the product and any downstream products?
+
+Finally, can China live with this gap?
+
+> TO DO: Find out whether China can live with this gap. Requires in-depth research. Perhaps sufficient at the product-level rather than country-product-level.
+
+# Bibliography

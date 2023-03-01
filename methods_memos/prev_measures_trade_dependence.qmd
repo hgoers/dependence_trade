@@ -1,0 +1,70 @@
+---
+title: "Previous Measures of Trade Dependence"
+format: 
+  html:
+    self-contained: true
+editor: visual
+bibliography: references.bib
+---
+
+@barbieri1996 explores whether trade ties facilitate interstate peace. Her measure focuses on the interaction between salience and symmetry in the trade relationship.
+
+Trade share:
+
+$$
+TS_{ij} = \frac{TotalTrade_{ij}}{TotalTrade_i}
+$$
+
+Where $i$ and $j$ are states.
+
+Salience measures the importance of bilateral trade to state $i$:
+
+$$
+Salience_{ij} = \sqrt{TS_i*TS_j}
+$$
+
+Symmetry measures equality in the trade relationship:
+
+$$
+Symmetry_{ij} = 1 - | TS_i - TS_j|
+$$
+
+Interdependence:
+
+$$
+Interdependence_{ij} = Salience_{ij} * Symmetry_{ij}
+$$
+
+@chen2021 asks how trade with a potential target's allies impacts the likelihood of conflict. He finds that increasing trade with allies decreases the likelihood of conflict between $i$ and $j$. This is because this trade increases the cost of conflict.
+
+$$
+TD_{ia} = \frac{TotalTrade_{ia}}{GDP_{i}}
+$$
+
+Where $a$ is the target \$j\$'s allies and $i$ is the challenger.
+
+@flores-macías2013 ask whether trade dependence prompts policy convergence. They look at the similarity in voting patterns between China (the influencer) and African and Latin American states.
+
+They look at total trade flows and salience between states $i$ and $j$.
+
+$$
+TotalTrade_{ij} = ln(Imports_{ij} + Exports_{ij})
+$$
+
+They use @oneal1997's measure of salience:
+
+$$
+Salience_{ij} = \frac{Imports_{ij} + Exports_{ij}}{GDP_i}
+$$
+
+@gartzke2016 explore the relationship between trade and peace.
+
+They take the natural log of @oneal1997's measure of trade dependence:
+
+$$
+Dependence_{i} = ln(\frac{Import_{ij}+Export_{ij}}{GDP_i})
+$$
+
+They use the lower of the two dependence values in a dyad to measure economic interdependence. They then use the absolute difference between these values for each state in the dyad to measure asymmetry.
+
+They then construct three additional measures of dependence. First, they measure the ability of the state to avoid coercion by locating alternative trade partners.

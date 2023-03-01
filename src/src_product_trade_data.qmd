@@ -1,0 +1,82 @@
+---
+title: "Sourcing Total Product-Level Trade Data Used to Calculate HHIs"
+author: "Harriet Goers"
+format: 
+  html:
+    self-contained: true
+editor: visual
+execute: 
+  warning: false
+  message: false
+---
+
+I use annual product-level trade data collected by UN COMTRADE. I collect these data using the UN COMTRADE API. Full details on the API can be found [here](https://comtrade.un.org/data/doc/api/#DataRequests).
+
+```{r}
+library(httr)
+library(jsonlite)
+library(tidyverse)
+library(glue)
+```
+
+We want to measure the level of concentration of trade in a product. We can get this by looking at the reporter-World bilateral trade in all products.
+
+We first need a list of all products. We will collect data on total exports or imports by states for all products (defined at the four digit HS level).
+
+> UN COMTRADE has very low usage limits for guests. You can only issue 100 requests per hour. You want to make sure that you are only making requests that you truly need.
+
+First, we collect a list of all product codes.
+
+```{r}
+product_codes <- fromJSON("https://comtrade.un.org/Data/cache/classificationHS.json")$results |> 
+  filter(nchar(id) == 4)
+```
+
+I will reference these codes in my article, so I am going to save this list.
+
+```{r}
+rio::export(product_codes, here::here("data", "product_codes.csv"))
+```
+
+Then, we pull all data for our years of interest.
+
+```{r}
+comtrade_pull <- function(product_code, year) {
+
+  query <- glue("https://comtrade.un.org/api/get?px=HS&ps={year}&r=all&p=0&rg=2&cc={product_code}&fmt=json&freq=A&head=H")
+
+  result <- tryCatch(
+    
+    fromJSON(query),
+    
+    error = function(err) {
+
+      print(glue("Limit reached at {lubridate::now()}, wait one hour"))
+      Sys.sleep(3600)
+      return(fromJSON(query))
+
+    }
+    
+  )
+
+  trade_df <- fromJSON(query)$dataset |>
+    as_tibble()
+
+  if (length(trade_df) != 0) {
+    
+    print(glue("Pulling data for {product_code}"))
+    rio::export(trade_df, here::here("data-raw", year, paste0(product_code, "_x.csv")))
+    
+  } else {
+    
+    print(glue("No data for {product_code}"))
+    return(NULL)
+    
+  }
+
+}
+
+safe_comtrade_pull <- safely(comtrade_pull)
+
+map(product_codes$id, ~ safe_comtrade_pull(.x, 2019))
+```

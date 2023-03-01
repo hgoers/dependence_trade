@@ -21,7 +21,7 @@ First we need to read in our total trade data:
 
 ```{r}
 df_raw <- map_dfr(
-  list.files(here("data-raw", "2019"), full.names = T), 
+  list.files(here("data-raw", "total_trade"), full.names = T), 
   ~ read_csv(.x, col_types = "ccccccccccccccccccccccccccccccccccc")
 )
 ```

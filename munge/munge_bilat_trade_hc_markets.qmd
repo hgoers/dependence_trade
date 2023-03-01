@@ -87,7 +87,7 @@ There are several commodities and partners for which the dominant exporter is su
 ```{r}
 hv_df <- gap_df |> 
   filter(gap_never_filled == 1) |> 
-  distinct(year, direction, reporter, partner, cmd_desc)
+  distinct(year, direction, reporter, partner, cmd_code, cmd_desc)
 
 hv_df
 ```
@@ -99,3 +99,5 @@ I refer to these markets in my article.
 ```{r}
 export(hv_df, here("data", "highly_vulnernable_bilat_trade.csv"))
 ```
+
+For the remaining dyad-commodity pairings, trade diverted from some combination of alternative trade parters could fill the gap left by the imposing state. We need some measure of the potential combinations of states that could fill this gap. 
