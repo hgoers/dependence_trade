@@ -17,6 +17,8 @@ library(tidyverse)
 library(scales)
 library(rio)
 library(here)
+library(tidygraph)
+library(ggraph)
 ```
 
 ```{r data}
@@ -28,19 +30,21 @@ hv_summary <- import(here("data", "highly_vulnernable_bilat_trade.csv"))
 
 Are states able to exploit trade imbalances to coerce other states into changing their behavior?
 
+I adopt @carnegie2015's definition of coercion: "the use of threats and assurances in combination to influence another state's behavior".
+
 Systematic exploration of trade dependence requires a comprehensive and detailed picture of the whole network of interactions between states. If a state is going to use trade dependence to compel another state to act in its interest, it needs to consider how it maximizes the economic cost it can threaten to impose on the target whilst taking into account how the target and other trading states will react to that threat. A state can only prompt this change in behavior if the economic cost of the threatened trade disruption is strictly greater than the cost the target will bear from changing their behavior. When these conditions hold, the target state is trade dependent on the imposing state.
 
-We need to understand both the economic cost the target faces from the trade ban, and the costs it face from acting in the imposing state's interests instead of its own. This paper will provide a novel commodity-level measure of the expected economic cost of trade disruptions. This measure better reflects the strategic calculations made by three important actors: the imposing state, the target state, and other trading states participating in the market for a commodity. It will then use this measure of trade dependence to explore the efficacy of this foreign policy tool.
+We need to understand both the economic cost the target faces from the trade ban, and the costs it expects to bear from acting in the imposing state's interests instead of its own. This paper will provide a novel commodity-level measure of the expected economic cost of trade disruptions. This measure captures the strategic calculations made by three important actors: the imposing state, the target state, and other trading states participating in the market for a commodity. I will then use this measure of trade dependence to explore the efficacy of this foreign policy tool.
 
 Which states control dominant shares of trade in critical products? How can target states attempt to fill a potential or existing gap in their access to these products or markets? How can other states leverage these gaps?
 
-This novel measure of trade dependence is generic: it can be used to explore the power dynamic between any pairing of states. It allows scholars and policymakers to systematically capture the potential for a dominant state to pressure a trade partner to act in the dominant state's interest.
+This novel measure of trade dependence is generic: it can be used to explore power dynamics between any pairing of states. It allows scholars and policymakers to systematically capture the potential for a dominant state to pressure a trade partner to act in the dominant state's interest.
 
-This paper makes four contributions. First, it builds a novel measure of trade dependence that better captures the strategic interactions exhibited by states as they interact in global markets. Second, it identifies cross-sectional and temporal patterns in dependence across trade. Third, it explores the relationship between dependence and X: a common and long-standing debate in international relations literature. Finally, it explores the implications and potential applications of this analysis of dependence for ongoing policy challenges and scholarly debate.
+This paper makes four contributions. First, it builds a novel measure of trade dependence that captures the strategic interactions exhibited by states as they interact in global markets. Second, it identifies cross-sectional and temporal patterns in trade dependence. Third, it explores the relationship between dependence and X: a common and long-standing debate in international relations literature. Finally, it explores the implications and potential applications of this analysis for ongoing policy challenges and scholarly debate.
 
 ## Literature review
 
-The link between dependence and power has long been chewed over. Broadly, the literature has debated whether increasing economic dependence on a state increases the likelihood that the partner will accommodate the reporter's interests, ceteris paribus.
+The link between dependence and power has long been chewed over. Broadly, the literature has debated whether increasing economic dependence on a state increases the likelihood that the partner will accommodate the reporter's interests, *ceteris paribus*.
 
 Previous research has relied on gross measures of trade dependence, including total trade and total trade as a proportion of a country's gross domestic product or gross national income. This is despite the fact that we rarely see imposers of trade disruptions attempt to disrupt all trade with a partner. Rather, they strategically select specific products or sectors to target [@gholz2021]. States are surprisingly resilient to trade bans or disruptions. Our surprise should prompt us to re-examine how we understand and measure trade dependence.
 
@@ -50,8 +54,6 @@ Several scholars have sought to expand on this research by looking at commodity-
 
 Several scholars have included in their measure trade with a potential target's allies. However, these measures of dependence also examine the overall trade relationship between the potential instigator and these allied states [@chen2021].
 
-Previous research on weaponized dependence
-
 Several researchers have found evidence that increased trade with China has led to increased convergence on Beijing's position on issues [@flores-macías2013; @strüver2014; @kastner2016]. Kastner finds stronger support for the claim that increased trade leads to increased convergence with China on economic issues. Specifically, he finds a strong relationship between increased trade and support for China's position on its status as a market economy.
 
 Others have found evidence to the contrary, including @medeiros2008 and @ross2006.
@@ -60,15 +62,15 @@ Others have found evidence to the contrary, including @medeiros2008 and @ross200
 
 ### A new definition of trade dependence
 
-To determine whether a target state is vulnerable to coercive trade policies by another state, we need to understand how that target state can react to the gap created by trade disruptions. Can they fill the gap, either by locating alternate suppliers or by increasing domestic production of a commodity? Can they adapt to living with the gap by finding appropriate substitutions for the commodity or reducing their demand for the commodity and any downstream products that rely on access to that commodity?
+To determine whether a target state is vulnerable to coercive trade policies by another state, we need to understand how that target state can react to the gap created by trade disruptions. Can they fill the gap, either by locating alternate suppliers or by increasing domestic production of a commodity? Alternatively, can they adapt to living with the gap by finding appropriate substitutions for the commodity or reducing their demand for the commodity and any downstream products that rely on access to that commodity?
 
-This measure of trade dependence directly address the three questions prompted by the process put forward above. First, we ask whether the imposing state can credibly threaten to impose severe economic costs on the target. Does their threat have teeth? As @gholz2021 demonstrate, to be able to credibly threaten to, or directly, impose a significant economic cost on a target, the imposing state needs to have market power. For simplicity, we will focus on export trade dependence, or the target state's vulnerability to severance of exports in commodities from the imposing state. At the extreme, if the imposing state is the only supplier of a commodity, the target state will not be able to locate alternative suppliers. It will either need to find a substitute or reduce its consumption of the commodity and any downstream products. Alternatively, if the imposing state is one of many suppliers of the commodity, the target state should be able to locate an alternative supplier and only suffer slightly increased prices for the product on global markets.
+This measure of trade dependence directly addresses the three questions prompted by the process outlined above. First, we ask whether the imposing state can credibly threaten to impose severe economic costs on the target. Does their threat have teeth? As @gholz2021 demonstrate, to be able to credibly threaten to, or directly, impose a significant economic cost on a target, the imposing state needs to have market power. To illustrate, let us look at export trade dependence, or the target state's level of vulnerability to severance of exports in commodities from the imposing state. At the extreme, if the imposing state is the only supplier of a commodity, the target state will not be able to locate alternative suppliers. It will need to ramp up domestic production, find a substitute, or reduce its consumption of the commodity and any downstream products. Alternatively, if the imposing state is one of many suppliers of the commodity, the target state should be able to locate an alternative supplier and only suffer slightly increased prices for the product on global markets.
 
-If the imposing state has sufficient market power to credibly threaten to stifle the target state's access to a commodity on the global market, we can move on to asking how the target and other states can respond to this threat. Broadly, the target state has two options. First, they can locate alternative suppliers of the commodity and attempt to maintain their current levels of consumption. Second, they can attempt to reduce their consumption of the product through contractions or substitutions. In short, they can attempt to fill the gap or adapt to living with it.
+If the imposing state has sufficient market power to credibly threaten to stifle the target state's access to a commodity on the global market, we can move on to asking how the target and other states can respond to this threat. Broadly, the target state has two options. First, they can locate alternative suppliers, or increase domestic production, of the commodity and attempt to maintain their current levels of consumption. Second, they can attempt to reduce their consumption of the product through contractions or substitutions. In short, they can attempt to fill the gap or adapt to living with it.
 
-Let us first look at how the target state can attempt to maintain current levels of access to, or consumers of, the commodity. To fill the gap, the target can attempt to locate alternative trade partners. The imposing state cannot threaten to impose large economic costs on the target of trade restrictions if the target can easily locate alternative suppliers of the product [@peksen2016; @gholz2021]. We, therefore, need to understand how other states with the capacity to trade in the threatened commodity will respond to this threat. For simplicity, we will assume that all other states that trade in the commodity will look to fill the gap. Exporters of the commodity will sell to the target at a higher price and importers of the commodity will demand it at a lower price than they previously accessed.
+Let us first look at how the target state can attempt to maintain current levels of access to, or consumers of, the commodity. To fill the gap, the target can attempt to locate alternative trade partners. The imposing state cannot threaten to impose large economic costs on the target of trade restrictions if the target can easily locate alternative suppliers of the product [@peksen2016; @gholz2021]. We, therefore, need to understand how other states with the capacity to trade in the threatened commodity will respond to this threat. For simplicity, we will assume that all other states that trade in the commodity will look to fill the gap. Exporters of the commodity will be attracted to the higher price at which they can sell the commodity to the target. Importers of the commodity will demand it at a lower price than they previously accessed.
 
-> TO DO: Explore why this is silly. Previous work has demonstrated the importance of alliances in shaping this response by other states [@chen2021].
+> TO DO: Explore why this is silly. Previous work has demonstrated the importance of alliances in shaping this response by other states [@chen2021]. Perhaps this is better in a different paper.
 
 > H1a: A target state is increasingly vulnerable to export restrictions with the imposing state's export market concentration, *ceteris paribus*.
 >
@@ -102,13 +104,13 @@ In summary, whether or not target state is trade dependent on an imposing state 
 
 Can the imposing state credibly threaten to impose severe economic costs on the target state? To answer this question, we need to measure trade market concentration. At the extreme, if the imposing state is the only supplier of a commodity, the target state will not be able to locate alternative suppliers. It will either need to find a substitute for, or reduce its consumption of, the commodity and any downstream products. Alternatively, if the imposing state is one of many suppliers of the commodity, the target state should be able to locate an alternative supplier and only suffer slightly increased prices for the commodity on the global markets.
 
-The Herfindahl-Hirschman Index (HHI) is a widely used measure of market concentration. When applied to international trade markets, the HHI measures the total value of a commodity traded by each state relative to the total value of trade in the commodity. It is calculated as the sum of the square of each state's market share. It ranges from zero to 10,000, with values nearing zero indicating a highly competitive market and values nearing 10,000 indicating a highly concentrated or monopolized market.
+The Herfindahl-Hirschman Index (HHI) is a widely used measure of market concentration. When applied to international trade markets, the HHI measures the value of a commodity traded by each state relative to the total value of trade in the commodity. It is calculated as the sum of the square of each state's market share. It ranges from zero to 10,000, with values nearing zero indicating a highly competitive market and values nearing 10,000 indicating a highly concentrated or monopolized market.
 
-This analysis uses the HHI to identify commodity trade markets in which the dominant participant could credibly threaten to strangle a target state's international access to the commodity. I examine market concentration for all commodities traded globally across our period of interest. This includes `r nrow(product_codes) |> comma()` different commodities.[^1] I use global commodity-level trade data provided by UN COMTRADE.
+This analysis uses the HHI to identify commodity trade markets in which the dominant participant could credibly threaten to stem a target state's international access to the commodity. I examine market concentration for all commodities traded globally across our period of interest. This includes `r nrow(product_codes) |> comma()` different commodities.[^1]
 
 [^1]: This analysis defines commodity groupings according to the four digit Harmonized Tariff Schedule (HS). The HS is a standardized classification system for traded products. It is used globally to identify products when collecting taxes, assessing duties, and reporting trade statistics. A full list of commodities and their HS codes can be accessed from [UN COMTRADE](https://comtrade.un.org/Data/cache/classificationHS.json).
 
-Across these `r nrow(product_codes) |> comma()` different commodities, the HHI ranges from `r hhi_summary |> summarise(min(hhi)) |> round()` to `r hhi_summary |> summarise(max(hhi)) |> round() |> pull() |> comma()`. Commonly, a market with a HHI of more than 2,500 is considered to be highly concentrated. `r hhi_summary |> count(hc = hhi > 2500) |> mutate(prop = n / sum(n)) |> filter(hc == T) |> pull(prop) |> percent()` of commodities are traded in highly concentrated markets for at least one year in our period of interest. These highly concentrated markets represent the trade in commodities for which a state or a small set of states can potentially impose severe economic costs on a target state. The dominant trading states in these markets represent potential viable imposing states. Their trade partners represent potential target states.
+Using trade data provided by UN COMTRADE, I find that across all `r nrow(product_codes) |> comma()` different commodities the HHI ranges from `r hhi_summary |> summarise(min(hhi)) |> round()` to `r hhi_summary |> summarise(max(hhi)) |> round() |> pull() |> comma()`. Commonly, a market with a HHI of more than 2,500 is considered to be highly concentrated. `r hhi_summary |> count(hc = hhi > 2500) |> mutate(prop = n / sum(n)) |> filter(hc == T) |> pull(prop) |> percent()` of commodities are traded in highly concentrated markets for at least one year in our period of interest. These highly concentrated markets represent the trade in commodities for which a state or a small set of states can potentially restrict a target state's international access. The dominant trading states in these markets represent potential viable imposing states. Their trade partners represent potential target states.
 
 ```{r}
 ggplot(hhi_summary, aes(x = hhi)) + 
@@ -124,9 +126,61 @@ ggplot(hhi_summary, aes(x = hhi)) +
 
 We can now examine the target state's response to a potential trade disruption of a vulnerable commodity. First we will determine whether the target state can fill the gap created by the trade ban. The target can either look to other trading states to fill this gap, or it can increase domestic production in the commodity.
 
-Can the target state locate alternative trade partners to fill the gap left by the imposing state? To measure this, I use annual bilateral trade data describing trade between the most dominant trading state and all of their trade partners for all commodities identified to be traded in highly concentrated markets. Attracted by the higher prices exports would receive or lower prices at which imports could be accessed, could alternative trading partners divert their trade in the vulnerable commodity to the target and fill the gap? For `r hv_summary |> distinct(direction, reporter, partner, cmd_code) |> nrow() |> broman::spell_out()` dyad-commodity pairings, the potential imposing state dominates trade to such an extent that all alternative trade partners combined cannot fill the gap they could leave. A full list of these products and trade partners is provided in the appendix. 
+Can the target state locate alternative trade partners to fill the gap left by the imposing state? To measure this, I use annual bilateral trade data describing trade between the most dominant trading state and all of their trade partners for all commodities identified to be traded in highly concentrated markets. Attracted by the higher prices exports would receive or lower prices at which imports could be accessed, could alternative trade partners divert their trade in the vulnerable commodity to the target and fill the gap?[^2] For `r hv_summary |> distinct(direction, reporter, partner, cmd_code) |> nrow()` dyad-commodity pairings, the potential imposing state dominates trade to such an extent that all alternative trade partners combined cannot fill the gap they could leave. For these commodities, the entire alternative market needs to increase production by a factor of at least `r hv_summary |> summarise(min(gap_prop)) |> round(2)` and up to `r hv_summary |> summarise(max(gap_prop)) |> round(2)` to fill the gap left by the imposing state. A full list of these products and trade partners is provided in the appendix. For the remaining dyad-commodity pairings, trade diverted from some combination of alternative trade partners could fill the gap left by the imposing state.
 
-For the remaining dyad-commodity pairings, trade diverted from some combination of alternative trade parters could fill the gap left by the imposing state.   
+[^2]: This is a very strong test of dependence. It is highly unlikely that any single alternate trade partner would respond to a trade ban by diverting all of its trade in a commodity from existing trade partners to the target state. In many cases, this action is impossible. My test is even less realistic: I ask whether all alternate trading states would divert all of their trade to the target state. I am comfortable with this test because it makes it harder for me to prove significance. At later stages in this process, I will reduce this threshold from 100 percent of trade diverted to a lower threshold.
+
+We now know which commodities the imposing state can credibly threaten to stem the target state's international access. However, it is very plausible that these target states could adapt their economies to live without some of these commodities. For example, individuals in Poland and Austria could probably adapt to living without typewriters imported from Ukraine.
+
+> TO DO: Work out how to filter this list without introducing bias. From Todd: rare earth, high tech, those with security spillovers, various commodities. Find a list of critical goods, preferably at the 10-digit level.
+
+Next, we need to consider the cost borne by the imposing state. There are two factors that I include in this analysis: the economic cost of imposing a trade ban, and the potential for retaliation from the target state. The economic cost borne by the imposing state includes the direct loss of revenue from trade in the product at the time the trade ban is imposed, and expected losses from future trade in the product for the duration of the ban. I use bilateral trade data at the commodity level to calculate the former component of this measure. To determine the expected cost of the trade ban in the medium- to long-term, we need to understand the imposing state's beliefs about how resilient the target state will be to this trade disruption. If the imposing state believes that the target state will cave to its demands quickly, the expected future cost of trade disruptions will be smaller than if the imposing state believes that the target state will resist.
+
+> TO DO: Test different discount factors. Can I simulate the range of beliefs that each potential imposing state would need to impose the trade ban? Also should probably include a general future discount.
+
+```{r}
+inter_df <- hv_summary |> 
+  distinct(r = reporter, p = partner) |> 
+  bind_rows(hv_summary |> distinct(p = reporter, r = partner)) |> 
+  count(p, r) |> 
+  filter(n > 1)
+```
+
+The imposing state could also expect that the target state will react to trade disruptions by imposing a retaliatory trade ban. To identify the imposing states for which this could serve as a deterrent, I identify interdependent dyads. Interdependence is rare: only `r (nrow(inter_df) / 2) |> broman::spell_out()` dyads exhibit it. Each state in these pairings could significantly limit their opposing state from accessing a commodity in retaliation to a threatened or imposed trade ban. For critical goods, this should serve as a sufficient deterrent to either state imposing a trade ban.
+
+```{r}
+reporters <- distinct(hv_summary, entity = reporter)
+partners <- distinct(hv_summary, entity = partner)
+
+nodes <- reporters |> 
+  bind_rows(partners) |> 
+  distinct()
+
+edges <- hv_summary |> 
+  select(reporter, partner, cmd_desc)
+
+dep_network <- tbl_graph(
+  nodes = nodes, 
+  edges = edges,
+  directed = T
+)
+
+ggraph(dep_network, layout = "fr") +
+  geom_edge_link(arrow = arrow(length = unit(2, 'mm')), alpha = 0.5) + 
+  geom_node_point() + 
+  geom_node_text(aes(label = entity), repel = TRUE) + 
+  theme_graph()
+```
+
+> TO DO: Look for circles.
+
+### Controls
+
+Overall bilateral trade flows [@barbieri1996].
+
+Overall bilateral import and export flows [@kastner2016; @strüver2014].
+
+Membership in the World Trade Organisation [@carnegie2015].
 
 ## Measuring influence
 
@@ -142,6 +196,8 @@ Both Flores-Macias and Kreps [-@flores-macías2013] and Struver [-@strüver2014]
 hv_summary |> 
   arrange(reporter, partner, cmd_code, year) |> 
   rename(commodity_code = cmd_code, description = cmd_desc) |> 
+  select(!c(trade_value, alt_total_value, gap, gap_never_filled)) |>
+  mutate(gap_prop = round(gap_prop, 3)) |> 
   janitor::clean_names("title") |>
   knitr::kable()
 ```

@@ -18,7 +18,7 @@ library(jsonlite)
 library(glue)
 ```
 
-First, we need to source the unique reporter codes used by UN COMTRADE. We need to use these IDs in the API call. 
+First, we need to source the unique reporter codes used by UN COMTRADE. We need to use these IDs in the API call.
 
 ```{r}
 reporter_codes <- fromJSON("https://comtrade.un.org/Data/cache/reporterAreas.json")$results
@@ -76,4 +76,3 @@ safe_comtrade_bilat_pull <- safely(comtrade_bilat_pull)
 
 map2(hc_bilat_summary$id, hc_bilat_summary$cmd_code, ~ safe_comtrade_bilat_pull(.x, .y, "2019", "2"))
 ```
-

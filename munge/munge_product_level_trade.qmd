@@ -31,7 +31,7 @@ Next we need to calculate the HHI for each product:
 ```{r}
 df_hhi <- df_raw |> 
   clean_names() |> 
-  select(year = yr, direction = rg_desc, reporter = rt_title, partner = pt_title, cmd_code, cmd_desc = cmd_desc_e, trade_value) |> 
+  select(year = yr, direction = rg_desc, reporter = rt_title, partner = pt_title, cmd_code, trade_value) |> 
   group_by(cmd_code, year, direction) |> 
   mutate(
     year = as.numeric(year),
@@ -40,7 +40,12 @@ df_hhi <- df_raw |>
     reporter_share = trade_value / global_trade_value * 100,
     hhi = sum(reporter_share^2)
   ) |> 
-  ungroup()
+  ungroup() |> 
+  left_join(
+    read_csv(here("data", "product_codes.csv"), col_types = c(id = "c")) |> 
+      select(cmd_code = id, cmd_desc = text)
+  ) |> 
+  relocate(cmd_desc, .after = cmd_code)
 
 df_hhi
 ```

@@ -25,6 +25,12 @@ We first need a list of all products. We will collect data on total exports or i
 
 > UN COMTRADE has very low usage limits for guests. You can only issue 100 requests per hour. You want to make sure that you are only making requests that you truly need.
 
+We will concentrate on critical goods. This is a difficult subset to define. Initially, I will draw on the most up-to-date US List of Critical Supply Chains, which can be accessed [here](https://www.trade.gov/data-visualization/draft-list-critical-supply-chains).
+
+```{r}
+critical_goods_list <- rio::import(here::here("data-raw", "data.csv"))
+```
+
 First, we collect a list of all product codes.
 
 ```{r}
