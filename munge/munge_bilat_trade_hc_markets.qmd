@@ -15,6 +15,8 @@ library(tidyverse)
 library(rio)
 library(here)
 library(janitor)
+library(wbstats)
+library(countrycode)
 ```
 
 First we need to read in our bilateral trade data:
@@ -79,9 +81,31 @@ hv_df <- gap_df |>
   relocate(cmd_desc, .after = cmd_code)
 ```
 
+We can now develop a measure of the cost the target faces, relative to their economic size.
+
+```{r}
+gdp_df <- wb_data("NY.GDP.MKTP.CD", start_date = 2019, end_date = 2019, return_wide = F) |> 
+  mutate(partner_clean = countrycode(country, "country.name", "country.name", custom_match = c("Turkiye" = "Turkey"))) |> 
+  select(partner_clean, year = date, gdp = value)
+
+full_hv_df <- hv_df |> 
+  mutate(partner_clean = countrycode(partner, "country.name", "country.name", custom_match = c("Turkiye" = "Turkey"))) |> 
+  left_join(gdp_df) |> 
+  mutate(gap_gdp = gap / gdp) |> 
+  select(!partner_clean)
+```
+
 I refer to these markets in my article.
 
 ```{r}
-export(hv_df, here("data", "highly_vulnernable_bilat_trade.csv"))
+export(full_hv_df, here("data", "highly_vulnernable_bilat_trade_summary.csv"))
 ```
 
+```{r}
+hv_trade <- full_hv_df |> 
+  left_join(gap_df, by = c("year", "direction", "reporter", "partner", "cmd_code", "trade_value"))
+```
+
+```{r}
+export(hv_trade, here("data", "highly_vulnernable_bilat_trade.csv"))
+```
