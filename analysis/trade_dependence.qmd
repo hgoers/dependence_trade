@@ -15,18 +15,18 @@ execute:
 ```{r libraries}
 library(tidyverse)
 library(scales)
-library(rio)
 library(here)
 library(tidygraph)
 library(ggraph)
 ```
 
 ```{r data}
-product_codes <- import(here("data", "product_codes.csv"))
-hhi_summary <- import(here("data", "hhi_summary.csv"))
-hc_summary <- import(here("data", "hc_product_global.csv"))
-hv_summary <- import(here("data", "highly_vulnernable_bilat_trade_summary.csv"))
-hv_trade <- import(here("data", "highly_vulnernable_bilat_trade.csv"))
+product_codes <- read_csv(here("data", "product_codes.csv"))
+hhi_summary <- read_csv(here("data", "hhi_summary.csv"), col_types = c(cmd_code = "c"))
+hc_summary <- read_csv(here("data", "hc_product_global.csv"))
+hc_summary_top_reporter <- read_csv(here("data", "hc_product_global_top_reporter.csv"), col_types = c(cmd_code = "c"))
+hv_summary <- read_csv(here("data", "highly_vulnernable_bilat_trade_summary.csv"))
+hv_trade <- read_csv(here("data", "highly_vulnernable_bilat_trade.csv"))
 ```
 
 Are states able to exploit trade imbalances to coerce other states into changing their behavior?
@@ -109,9 +109,9 @@ The amount of the good exported by the target state to the imposing state is det
 
 It follows that the amount of the good available for export and consumption is impacted by the tariff. Related, we need to understand how tolerant the imposing state's economy is to price increases. If a small increase in prices leads to a steep decrease in demand for the product, the imposing state has greater control over flows of the good into its economy than if demand for the good is relatively inelastic. The imposing state's type is represented by $\zeta_I = \{L, H\}$, where $\zeta_I = L$ indicates that the imposing state's economy has a low level of tolerance to price increases and $\zeta_I = H$ indicates that the imposing state's economy has a high level of tolerance to price increases.
 
-Therefore, I model the target and imposing states' utility over the good as functions of the tariff and the imposing state's type: $\mu_i(\tau, \zeta_I)$, where $i = \{I, T\}$.
+Therefore, I model the target and imposing states' utility over the good as functions of the tariff and the imposing state's type: $\mu_i(\tau, \zeta_I)$, where $i = \{I, T\}$. The target's utility over the good, $\mu_T(\tau, \zeta_I)$, is assumed to be concave in $\tau$ and monotonically decreasing in $\tau$.
 
-The imposing state's utility, $\mu_I(\tau, \zeta_I)$ is assumed to have an interior maximum at $\bar{\tau}$. The target's utility over the good, $\mu_T(\tau, \zeta_I)$, is assumed to be concave in $\tau$ and monotonically decreasing in $\tau$. In other words, the target state always prefers a lower tariff. The imposing state has to work within the constraints of balancing the benefits of a higher tariff, including potential higher tax revenues, with providing its economy with access to an in-demand good at a cheaper price than could otherwise be accessed.
+The imposing state's utility, $\mu_I(\tau, \zeta_I)$ is assumed to have an interior maximum at $\bar{\tau}$. The imposing state has to work within the constraints of balancing the benefits of a higher tariff, including potential higher tax revenues, with providing its economy with access to an in-demand good at a cheaper price than could otherwise be accessed.
 
 The target and imposing states start the game with a tariff rate that is set through cooperative agreement. This process is not modeled in this analysis.
 
@@ -151,9 +151,7 @@ The Herfindahl-Hirschman Index (HHI) is a widely used measure of market concentr
 
 This analysis uses the HHI to identify commodity trade markets in which the dominant participant could credibly threaten to stem a target state's international access to the commodity. I examine market concentration for all commodities traded globally across our period of interest. This includes `r nrow(product_codes) |> comma()` different commodities.[^2]
 
-[^2]: This analysis defines commodity groupings according to the four digit Harmonized Tariff Schedule (HS). The HS is a standardized classification system for traded products. It is used globally to identify products when collecting taxes, assessing duties, and reporting trade statistics. A full list of commodities and their HS codes can be accessed from [UN COMTRADE](https://comtrade.un.org/Data/cache/classificationHS.json).
-
-> TO DO: Shift to 6-digit HS.
+[^2]: This analysis defines commodity groupings according to the six digit Harmonized Tariff Schedule (HS). The HS is a standardized classification system for traded products. It is used globally to identify products when collecting taxes, assessing duties, and reporting trade statistics. A full list of commodities and their HS codes can be accessed from [UN COMTRADE](https://comtrade.un.org/Data/cache/classificationHS.json).
 
 Using trade data provided by the UN COMTRADE, I find that across all `r nrow(product_codes) |> comma()` different commodities the HHI ranges from `r hhi_summary |> summarise(min(hhi)) |> round()` to `r hhi_summary |> summarise(max(hhi)) |> round() |> pull() |> comma()` across our period of interest. Commonly, a market with a HHI of more than 2,500 is considered to be highly concentrated. `r hhi_summary |> count(hc = hhi > 2500) |> mutate(prop = n / sum(n)) |> filter(hc == T) |> pull(prop) |> percent()` of commodities are traded in highly concentrated markets for at least one year in our period of interest. These highly concentrated markets represent the trade in commodities for which a state or a small set of states can potentially restrict a target state's international access. The dominant trading states in these markets represent potential viable imposing states. Their trade partners represent potential target states.
 
@@ -171,7 +169,17 @@ ggplot(hhi_summary, aes(x = hhi)) +
 
 We can now examine the target state's response to a potential trade disruption of a vulnerable commodity. First we will determine whether the target state can fill the gap created by the trade ban. The target can either look to other trading states to fill this gap, or it can increase domestic production in the commodity.
 
-Can the target state locate alternative trade partners to fill the gap left by the imposing state? To measure this, I use annual bilateral trade data describing trade between the most dominant trading state and all of their trade partners for all commodities identified to be traded in highly concentrated markets. Attracted by the higher prices exports would receive or lower prices at which imports could be accessed, could alternative trade partners divert their trade in the vulnerable commodity to the target and fill the gap?[^3] For `r hv_summary |> distinct(direction, reporter, partner, cmd_code) |> nrow()` dyad-commodity pairings, the potential imposing state dominates trade to such an extent that all alternative trade partners combined cannot fill the gap they could leave. For these commodities, all other trading states combined would need to increase production by a factor of at least `r hv_summary |> summarise(min(gap_prop)) |> round(2)` and up to `r hv_summary |> summarise(max(gap_prop)) |> round(2)` to fill the gap left by the imposing state. A full list of these products and trade partners is provided in the appendix. For the remaining dyad-commodity pairings, trade diverted from some combination of alternative trade partners could fill the gap left by the imposing state.
+```{r}
+alt_reporter_null <- filter(hc_summary_top_reporter, reporter_share == 100)
+
+alt_reporter_factor <- hc_summary_top_reporter |> 
+  anti_join(alt_reporter_null, by = c("year", "direction", "reporter", "partner", "cmd_code", "cmd_desc", "trade_value", "global_trade_value", "reporter_share", "hhi")) |> 
+  filter(reporter_share > 50) |> 
+  select(reporter, cmd_code, reporter_share) |> 
+  mutate(alt_reporter_share = 100 - reporter_share, factor = round(reporter_share / alt_reporter_share, 3))
+```
+
+Can the target state locate alternative trade partners to fill the gap left by the imposing state? To measure this, I use annual bilateral trade data describing trade between the most dominant trading state and all of their trade partners for all commodities identified to be traded in highly concentrated markets. Attracted by the higher prices exports would receive or lower prices at which imports could be accessed, could alternative trade partners divert their trade in the vulnerable commodity to the target and fill the gap?[^3] For `r hc_summary_top_reporter |> filter(reporter_share > 50) |> nrow() |> comma()` dyad-commodity pairings, the potential imposing state dominates trade to such an extent that all alternative trade partners combined cannot fill the gap they could leave. In fact, in `r nrow(alt_reporter_null) |> comma()` commodity-years, a state is the sole trader in a commodity. For commodities that are traded by at least two states, all other trading states combined would need to increase production by a factor of at least `r alt_reporter_factor |> summarise(min(factor))` and up to `r alt_reporter_factor |> summarise(max(factor)) |> pull() |> comma()` to fill the gap left by the imposing state. A full list of these products and dominant trade partners is provided in the appendix. For the remaining dyad-commodity pairings, trade diverted from some combination of alternative trade partners could fill the gap left by the imposing state.
 
 [^3]: This is a very strong test of dependence. It is highly unlikely that any single alternate trade partner would respond to a trade ban by diverting all of its trade in a commodity from existing trade partners to the target state. In many cases, this action is impossible. My test is even less realistic: I ask whether all alternate trading states would divert all of their trade to the target state. I am comfortable with this test because it makes it harder for me to prove significance. At later stages in this process, I will reduce this threshold from 100 percent of trade diverted to a lower threshold.
 
@@ -236,11 +244,10 @@ Both Flores-Macias and Kreps [-@flores-macías2013] and Struver [-@strüver2014]
 **Complete list of dominated pairings:**
 
 ```{r}
-hv_summary |> 
-  arrange(reporter, partner, cmd_code, year) |> 
-  rename(commodity_code = cmd_code, description = cmd_desc) |> 
-  select(!c(trade_value, alt_total_value, gap, gap_never_filled, gdp)) |>
-  mutate(gap_prop = round(gap_prop, 3)) |> 
+hc_summary_top_reporter |> 
+  filter(reporter_share > 50) |> 
+  transmute(year, direction, reporter, commodity = cmd_desc, reporter_share = percent(reporter_share / 100, accuracy = 0.01)) |> 
+  arrange(reporter, year) |> 
   janitor::clean_names("title") |>
   knitr::kable()
 ```

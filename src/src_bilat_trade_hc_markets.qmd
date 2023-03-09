@@ -24,12 +24,13 @@ First, we need to source the unique reporter codes used by UN COMTRADE. We need 
 reporter_codes <- fromJSON("https://comtrade.un.org/Data/cache/reporterAreas.json")$results
 ```
 
-Then we need the product codes, years, and dominant reporters for highly concentrated markets:
+Then we need to filter for only the commodities for which trade is dominated to such an extent by one trade partner that no other combination of trade partners could fill a gap left by that trade partner.
 
 ```{r}
-hc_bilat_summary <- read_csv(here("data", "hc_product_global.csv"), col_types = c(cmd_code = "c")) |> 
-  group_by(year, direction, cmd_code) |>
-  slice_max(reporter_share) |> 
+hc_bilat_summary <- read_csv(
+  here("data", "hc_product_global_top_reporter.csv"), col_types = c(cmd_code = "c")
+) |> 
+  filter(reporter_share > 50) |> 
   mutate(direction_code = if_else(direction == "Import", 1, 2)) |> 
   left_join(reporter_codes, by = c("reporter" = "text"))
 ```

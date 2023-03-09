@@ -59,16 +59,16 @@ df_hhi |>
   arrange(desc(hhi))
 ```
 
-And we can identify the dominant traders in each market. Let's look at 0502: Pigs', hogs' or boars' bristles and hair; and waste thereof in 2019, which is a highly concentrated market.
+And we can identify the dominant traders in each market. Let's look at 010612 - Mammals; live, whales, dolphins and porpoises in 2019, which is a highly concentrated market.
 
 ```{r}
-df_0502 <- filter(df_hhi, cmd_code == "0502")
+df_010612 <- filter(df_hhi, cmd_code == "010612")
 
-arrange(df_0502, desc(reporter_share))
+arrange(df_010612, desc(reporter_share))
 ```
 
 ```{r}
-ggplot(df_0502, aes(x = reporter_share, y = reorder(reporter, reporter_share))) + 
+ggplot(df_010612, aes(x = reporter_share, y = reorder(reporter, reporter_share))) + 
   geom_col() + 
   theme_minimal() + 
   labs(x = "Reporter share (%)", y = NULL)
@@ -88,4 +88,14 @@ I analyse highly concentrated markets. To do this, I need data on the reporter s
 df_hhi |> 
   filter(hhi > 2500) |> 
   export(here("data", "hc_product_global.csv"))
+```
+
+Finally, I create a summary that lists only the top trader in each of these highly concentrated markets:
+
+```{r}
+df_hhi |> 
+  filter(hhi > 2500) |> 
+  group_by(year, direction, cmd_code) |> 
+  slice_max(reporter_share) |> 
+  export(here("data", "hc_product_global_top_reporter.csv"))
 ```
